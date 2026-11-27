@@ -1,0 +1,61 @@
+# Default experiment configuration. Every value here is copied into
+# runs/<run_id>/config.yaml so each run can be reproduced.
+
+run:
+  initial_cash: 100000
+  start: "2024-01-01"
+  end: "2025-12-31"
+  # Calendar days of history loaded before `start` so indicators have data.
+  warmup_days: 120
+  runs_dir: runs
+
+data:
+  # yahoo: Yahoo Finance daily bars via yfinance, split/dividend adjusted.
+  # Downloaded once by scripts/fetch_data.py into data/raw/, then read from disk.
+  source: yahoo
+  dir: data/raw
+  tickers: [AAPL, MSFT, NVDA, AMZN, GOOGL, META, AVGO, TSLA, COST, NFLX]
+  benchmark: QQQ
+
+strategy:
+  # llm | ma_cross | fake_llm
+  kind: llm
+  lookback_days: 20      # closes shown to the LLM per stock
+  ma_fast: 20            # ma_cross control strategy
+  ma_slow: 50
+  ma_target_weight: 0.10
+
+llm:
+  provider: anthropic
+  model: claude-opus-5-5
+  # Current Claude models reject sampling parameters (temperature/top_p/top_k)
+  # with HTTP 400 and the current SDK no longer has the argument, so
+  # temperature must stay null. What is held fixed instead: model id, effort,
+  # prompt template (hashed into every log line) and the JSON output schema.
+  temperature: null
+  effort: medium
+  max_tokens: 16000
+  prompt_file: configs/prompts/decision_v1.txt
+  anonymize: true
+  # Server-side refusal fallback. If it triggers, a different model answers;
+  # that is recorded per call (model_served) and counted in reports.
+  fallbacks: default
+
+risk:
+  max_position_weight: 0.20
+  max_trades_per_day: 5
+  max_drawdown: 0.15
+
+costs:
+  commission_rate: 0.001   # 0.1% of notional
+  min_commission: 0.0
+  slippage_bps: 5
+  # Whole shares only; fractional shares are not modelled.
+  # Orders smaller than this share of equity are skipped, so small top-ups
+  # toward a target weight do not pay commission for nothing.
+  min_order_weight: 0.01
+
+evaluation:
+  risk_free_rate: 0.0      # annual
+  consistency_runs: 5
+  forward_days: 5          # hindsight window used only in weekly reviews

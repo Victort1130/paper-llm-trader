@@ -1,0 +1,71 @@
+# Weekly review {{ week }} ({{ first }} to {{ last }})
+
+Paper trading only. The "next {{ forward_days }} days" column uses hindsight and is for review; the strategy never saw it.
+
+## Result
+
+- Portfolio: {{ "%.2f%%"|format(ret * 100) }} ({{ "{:,.0f}".format(equity_start) }} → {{ "{:,.0f}".format(equity_end) }})
+{% for name, r in bench %}
+- {{ name }}: {{ "%.2f%%"|format(r * 100) }}
+{% endfor %}
+
+## BUY and SELL decisions ({{ actions|length }}; HOLD decisions: {{ n_hold }})
+
+A BUY or SELL whose target matches the current position places no order.
+
+{% if actions %}
+| Date | Stock | Action | Target | Next {{ forward_days }} days | Hindsight agrees? | Reason |
+|---|---|---|---|---|---|---|
+{% for a in actions %}
+| {{ a.date }} | {{ a.ticker }} | {{ a.action }} | {{ "%.0f%%"|format(a.target_weight * 100) }} | {{ "n/a" if a.fwd is none else "%.2f%%"|format(a.fwd * 100) }} | {{ "n/a" if a.score is none else ("yes" if a.score > 0 else "no") }} | {{ a.reason|replace("|", "/") }} |
+{% endfor %}
+{% else %}
+None.
+{% endif %}
+
+## Fills
+
+{% if fills %}
+| Fill date | Stock | Side | Shares | Fill price | Commission |
+|---|---|---|---|---|---|
+{% for f in fills %}
+| {{ f.fill_date }} | {{ f.ticker }} | {{ f.side }} | {{ f.shares }} | {{ "%.2f"|format(f.fill_price) }} | {{ "%.2f"|format(f.commission) }} |
+{% endfor %}
+{% else %}
+None.
+{% endif %}
+
+## Blocked or trimmed by risk rules
+
+{% if blocked %}
+{% for b in blocked %}
+- {{ b.date }} {{ b.ticker }} {{ b.side }} {{ b.shares }} → {{ b.status }} ({{ b.approved_shares }} shares): {{ b.notes|join("; ") }}
+{% endfor %}
+{% else %}
+None.
+{% endif %}
+
+## Best and worst calls in hindsight
+
+{% if best %}
+Best:
+{% for a in best %}
+- {{ a.date }} {{ a.ticker }} {{ a.action }}: next {{ forward_days }} days {{ "%.2f%%"|format(a.fwd * 100) }}. Reason given: {{ a.reason }}
+{% endfor %}
+{% endif %}
+{% if worst %}
+
+Worst:
+{% for a in worst %}
+- {{ a.date }} {{ a.ticker }} {{ a.action }}: next {{ forward_days }} days {{ "%.2f%%"|format(a.fwd * 100) }}. Reason given: {{ a.reason }}
+{% endfor %}
+{% endif %}
+{% if not best %}
+No scored calls this week.
+{% endif %}
+
+## Questions for the reviewer
+
+- Did the stated reasons match what the numbers in the prompt actually showed?
+- Were trades blocked by the risk rules ones the strategy should have known not to request?
+- Is any single kind of call (for example buying after strong 5-day gains) responsible for most of the losses?
